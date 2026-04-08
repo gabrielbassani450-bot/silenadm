@@ -34,7 +34,7 @@ const REQUIRED_ENV = [
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     logger.fatal({ key }, 'Variável de ambiente obrigatória ausente');
-    process.exit(1);
+    if (!process.env.VERCEL) process.exit(1);
   }
 }
 
@@ -154,9 +154,9 @@ app.use('/api/meetings', meetingsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/sheets', sheetsRoutes);
 
-// ─── Frontend estático (produção) ────────────────────────────────────────────
-// Em produção, serve o build do frontend. Em dev, o Vite proxy cuida disso.
-if (process.env.NODE_ENV === 'production') {
+// ─── Frontend estático (produção standalone — não Vercel) ────────────────────
+// Em produção standalone, serve o build do frontend. No Vercel, o CDN cuida disso.
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
   const webDist = path.join(__dirname, '../../web/dist');
   app.use(express.static(webDist, { maxAge: '30d', immutable: true }));
 
@@ -181,51 +181,52 @@ app.use(errorHandler);
 // ─── Start ───────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 
-const server = app.listen(PORT, () => {
-  logger.info({
-    env: process.env.NODE_ENV || 'development',
-    port: PORT,
-    health: `http://localhost:${PORT}/health`,
-  }, 'Dashboard ADM — API iniciada');
+if (!process.env.VERCEL) {
+  const server = app.listen(PORT, () => {
+    logger.info({
+      env: process.env.NODE_ENV || 'development',
+      port: PORT,
+      health: `http://localhost:${PORT}/health`,
+    }, 'Dashboard ADM — API iniciada');
 
-  // Limpeza periódica de tokens expirados (a cada 6h)
-  const { cleanupExpiredTokens } = require('./modules/auth/auth.service');
-  setInterval(() => {
-    cleanupExpiredTokens().catch((err) =>
-      logger.error({ err: err.message }, 'Falha na limpeza de tokens')
-    );
-  }, 6 * 60 * 60 * 1000);
-});
+    // Limpeza periódica de tokens expirados (a cada 6h)
+    const { cleanupExpiredTokens } = require('./modules/auth/auth.service');
+    setInterval(() => {
+      cleanupExpiredTokens().catch((err) =>
+        logger.error({ err: err.message }, 'Falha na limpeza de tokens')
+      );
+    }, 6 * 60 * 60 * 1000);
+  });
 
-// Graceful shutdown — garante que conexões abertas sejam encerradas limpo
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM recebido. Encerrando servidor...');
-  server.close(() => {
-    require('./lib/prisma').$disconnect().then(() => {
-      logger.info('Servidor encerrado.');
-      process.exit(0);
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    logger.info('SIGTERM recebido. Encerrando servidor...');
+    server.close(() => {
+      require('./lib/prisma').$disconnect().then(() => {
+        logger.info('Servidor encerrado.');
+        process.exit(0);
+      });
     });
   });
-});
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT recebido. Encerrando servidor...');
-  server.close(() => {
-    require('./lib/prisma').$disconnect().then(() => {
-      process.exit(0);
+  process.on('SIGINT', () => {
+    logger.info('SIGINT recebido. Encerrando servidor...');
+    server.close(() => {
+      require('./lib/prisma').$disconnect().then(() => {
+        process.exit(0);
+      });
     });
   });
-});
 
-// Captura erros não tratados para não derrubar o processo
-process.on('uncaughtException', (err) => {
-  logger.fatal({ err }, 'Exceção não capturada');
-  process.exit(1);
-});
+  process.on('uncaughtException', (err) => {
+    logger.fatal({ err }, 'Exceção não capturada');
+    process.exit(1);
+  });
 
-process.on('unhandledRejection', (reason) => {
-  logger.fatal({ err: reason }, 'Promise rejeitada sem handler');
-  process.exit(1);
-});
+  process.on('unhandledRejection', (reason) => {
+    logger.fatal({ err: reason }, 'Promise rejeitada sem handler');
+    process.exit(1);
+  });
+}
 
 module.exports = app;
