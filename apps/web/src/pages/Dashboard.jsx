@@ -11,7 +11,6 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Link } from 'react-router-dom'
 import { financialApi, meetingsApi } from '../services/api'
-import Spinner from '../components/ui/Spinner'
 import PageError from '../components/ui/PageError'
 import useAuthStore from '../store/authStore'
 

@@ -16,8 +16,8 @@ import useAuthStore from '../store/authStore'
 
 // ─── Formulário de reunião ────────────────────────────────────────────────────
 
-function MeetingForm({ meeting, users, onSave, onClose }) {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch } = useForm({
+function MeetingForm({ meeting, users, onSave, onClose, prefilledDate }) {
+  const { register, handleSubmit, formState: { errors, isSubmitting }, watch } = useForm({
     defaultValues: meeting
       ? {
           title: meeting.title,
@@ -30,7 +30,7 @@ function MeetingForm({ meeting, users, onSave, onClose }) {
       : (() => {
           const now  = new Date()
           const pad  = (n) => String(n).padStart(2, '0')
-          const date = format(now, 'yyyy-MM-dd')
+          const date = prefilledDate || format(now, 'yyyy-MM-dd')
           const h    = now.getHours()
           // Garante que endAt não ultrapasse 23:59 (evita "T24:00" inválido)
           const startH = pad(h)
@@ -421,6 +421,7 @@ export default function CalendarPage() {
         <MeetingForm
           meeting={editMode ? selectedMeeting : null}
           users={users}
+          prefilledDate={!editMode ? prefilledDate : null}
           onClose={() => { setFormOpen(false); setEditMode(false) }}
           onSave={handleSaved}
         />
