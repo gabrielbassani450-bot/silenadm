@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+enum TransactionType {
+  RECEITA
+  DESPESA
+}
+
+enum TransactionSource {
+  MANUAL
+  GOOGLE_SHEETS
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  cpf          String?  @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(VIEWER)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  refreshTokens  RefreshToken[]
+  transactions   Transaction[]
+  createdMeetings Meeting[]      @relation("MeetingCreator")
+  meetingAttendees MeetingAttendee[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  familyId  String    @map("family_id")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+model Category {
+  id           String          @id @default(uuid())
+  name         String          @unique
+  type         TransactionType
+  color        String?
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  transactions Transaction[]
+
+  @@map("categories")
+}
+
+model Transaction {
+  id          String            @id @default(uuid())
+  userId      String            @map("user_id")
+  categoryId  String?           @map("category_id")
+  amount      Decimal           @db.Decimal(15, 2)
+  type        TransactionType
+  description String?
+  date        DateTime          @db.Date
+  source      TransactionSource @default(MANUAL)
+  sheetsRowRef String?          @map("sheets_row_ref")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([date])
+  @@index([type])
+  @@index([userId, date])
+  @@index([userId, type])
+  @@index([categoryId])
+  @@map("transactions")
+}
+
+model Meeting {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  startAt     DateTime @map("start_at")
+  endAt       DateTime @map("end_at")
+  location    String?
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  createdBy User              @relation("MeetingCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  attendees MeetingAttendee[]
+
+  @@index([startAt])
+  @@index([createdById])
+  @@map("meetings")
+}
+
+model MeetingAttendee {
+  meetingId String @map("meeting_id")
+  userId    String @map("user_id")
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([meetingId, userId])
+  @@index([userId])
+  @@map("meeting_attendees")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String
+  resource   String
+  resourceId String?  @map("resource_id")
+  ipAddress  String?  @map("ip_address")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

@@ -1,0 +1,25 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dashboard_adm_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dashboard_adm
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      # ⚠️  TROQUE em produção: use variável de ambiente ou .env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local

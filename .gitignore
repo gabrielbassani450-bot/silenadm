@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Environment (contém segredos JWT, DB, cookies)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Google Sheets credentials (nunca commitar chaves de API)
+google-service-account*.json
+
+# Test scripts (dev only)
+_*_test.js
+
+# Claude config
+.claude/
