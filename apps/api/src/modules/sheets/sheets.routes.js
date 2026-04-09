@@ -17,21 +17,24 @@ const { success } = require('../../utils/response');
 const router = Router();
 
 // Rate limit específico para Sheets — 20 req/min por usuário
-// (bem abaixo do limite da Google API de 300 req/min por projeto)
-const sheetsLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  keyGenerator: (req) => req.user?.id || req.ip, // por usuário autenticado
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: {
-      code: 'TOO_MANY_REQUESTS',
-      message: 'Limite de requisições ao Google Sheets excedido. Aguarde 1 minuto.',
+// (skip em serverless — store in-memory reseta a cada cold start)
+if (!process.env.VERCEL) {
+  const sheetsLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    keyGenerator: (req) => req.user?.id || req.ip, // por usuário autenticado
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      success: false,
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Limite de requisições ao Google Sheets excedido. Aguarde 1 minuto.',
+      },
     },
-  },
-});
+  });
+  router.use(sheetsLimiter);
+}
 
 router.use(authenticate, authorize('MANAGER'));
 
@@ -73,7 +76,6 @@ function handleGoogleError(err, next) {
 // GET /api/sheets/read?spreadsheetId=...&range=...
 router.get(
   '/read',
-  sheetsLimiter,
   validate({
     query: z.object({
       spreadsheetId: z.string().min(1, 'spreadsheetId obrigatório').max(200),
@@ -94,7 +96,6 @@ router.get(
 // POST /api/sheets/append
 router.post(
   '/append',
-  sheetsLimiter,
   validate({
     body: z.object({
       spreadsheetId: z.string().min(1, 'spreadsheetId obrigatório').max(200),

@@ -77,13 +77,8 @@ const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:3000')
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permite requests sem origin (curl, Postman, mobile) apenas em dev
-      if (!origin) {
-        if (process.env.NODE_ENV === 'production') {
-          return callback(new Error('Origin não permitida'));
-        }
-        return callback(null, true);
-      }
+      // No Vercel, fetch same-origin NÃO envia header Origin
+      if (!origin) return callback(null, true);
       if (ALLOWED_ORIGINS.includes(origin)) {
         return callback(null, true);
       }
@@ -95,19 +90,21 @@ app.use(
   })
 );
 
-// Rate limit global (por IP)
-app.use(
-  rateLimit({
-    windowMs: 60 * 1000, // 1 minuto
-    max: 200,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: {
-      success: false,
-      error: { code: 'TOO_MANY_REQUESTS', message: 'Limite de requisições excedido' },
-    },
-  })
-);
+// Rate limit global (por IP) — skip em serverless (store in-memory reseta a cada cold start)
+if (!process.env.VERCEL) {
+  app.use(
+    rateLimit({
+      windowMs: 60 * 1000, // 1 minuto
+      max: 200,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: {
+        success: false,
+        error: { code: 'TOO_MANY_REQUESTS', message: 'Limite de requisições excedido' },
+      },
+    })
+  );
+}
 
 // Parsers
 app.use(express.json({ limit: '1mb' }));
@@ -146,6 +143,9 @@ app.get('/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
   });
+});
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 app.use('/api/auth', authRoutes);

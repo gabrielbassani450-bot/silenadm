@@ -5,7 +5,14 @@
 // BUG CORRIGIDO: transactionToRow assumia que `date` era sempre um Date object —
 // qualquer null/string causaria crash
 
-const { google } = require('googleapis');
+let google;
+function getGoogleApis() {
+  if (!google) {
+    google = require('googleapis').google;
+  }
+  return google;
+}
+
 const path = require('path');
 const fs = require('fs');
 
@@ -64,7 +71,7 @@ function getAuth() {
     );
   }
 
-  _auth = new google.auth.GoogleAuth({
+  _auth = new (getGoogleApis()).auth.GoogleAuth({
     credentials,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
@@ -80,7 +87,7 @@ function getAuth() {
  */
 async function readRange(spreadsheetId, range) {
   const auth = getAuth();
-  const sheets = google.sheets({ version: 'v4', auth });
+  const sheets = getGoogleApis().sheets({ version: 'v4', auth });
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
@@ -98,7 +105,7 @@ async function readRange(spreadsheetId, range) {
  */
 async function writeRange(spreadsheetId, range, values) {
   const auth = getAuth();
-  const sheets = google.sheets({ version: 'v4', auth });
+  const sheets = getGoogleApis().sheets({ version: 'v4', auth });
 
   const response = await sheets.spreadsheets.values.update({
     spreadsheetId,
@@ -118,7 +125,7 @@ async function writeRange(spreadsheetId, range, values) {
  */
 async function appendRows(spreadsheetId, range, values) {
   const auth = getAuth();
-  const sheets = google.sheets({ version: 'v4', auth });
+  const sheets = getGoogleApis().sheets({ version: 'v4', auth });
 
   const response = await sheets.spreadsheets.values.append({
     spreadsheetId,
