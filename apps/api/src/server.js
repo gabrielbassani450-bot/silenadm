@@ -77,11 +77,12 @@ const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:3000')
 app.use(
   cors({
     origin: (origin, callback) => {
-      // No Vercel, fetch same-origin NÃO envia header Origin
+      // Sem Origin header (same-origin, curl, etc) — sempre permite
       if (!origin) return callback(null, true);
-      if (ALLOWED_ORIGINS.includes(origin)) {
-        return callback(null, true);
-      }
+      // Origins explicitamente permitidas
+      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      // No Vercel: aceita qualquer subdomain .vercel.app (preview deploys, etc)
+      if (process.env.VERCEL && origin.endsWith('.vercel.app')) return callback(null, true);
       return callback(new Error(`CORS: origem não permitida — ${origin}`));
     },
     credentials: true, // necessário para cookies HttpOnly
