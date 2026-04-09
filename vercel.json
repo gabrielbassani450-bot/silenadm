@@ -5,7 +5,7 @@
   "outputDirectory": "apps/web/dist",
   "functions": {
     "api/index.js": {
-      "includeFiles": "apps/api/src/**,apps/api/prisma/schema.prisma,apps/api/package.json",
+      "includeFiles": "apps/api/src/**,apps/api/prisma/**,apps/api/node_modules/.prisma/**",
       "maxDuration": 30
     }
   },

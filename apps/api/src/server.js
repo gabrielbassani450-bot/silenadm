@@ -149,6 +149,29 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Diagnóstico temporário — remover após deploy estável
+app.get('/api/debug', async (req, res) => {
+  const checks = {};
+  try { require('@prisma/client'); checks.prismaClient = 'ok'; } catch (e) { checks.prismaClient = e.message; }
+  try { require('bcryptjs'); checks.bcryptjs = 'ok'; } catch (e) { checks.bcryptjs = e.message; }
+  try { require('jsonwebtoken'); checks.jwt = 'ok'; } catch (e) { checks.jwt = e.message; }
+  try { require('zod'); checks.zod = 'ok'; } catch (e) { checks.zod = e.message; }
+  try {
+    const prisma = require('./lib/prisma');
+    const count = await prisma.user.count();
+    checks.dbConnection = `ok (${count} users)`;
+  } catch (e) { checks.dbConnection = e.message; }
+  checks.env = {
+    DATABASE_URL: !!process.env.DATABASE_URL,
+    JWT_ACCESS_SECRET: !!process.env.JWT_ACCESS_SECRET,
+    JWT_REFRESH_SECRET: !!process.env.JWT_REFRESH_SECRET,
+    COOKIE_SECRET: !!process.env.COOKIE_SECRET,
+    NODE_ENV: process.env.NODE_ENV || 'not set',
+    VERCEL: !!process.env.VERCEL,
+  };
+  res.json(checks);
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/meetings', meetingsRoutes);

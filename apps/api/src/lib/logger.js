@@ -4,12 +4,12 @@ const pino = require('pino');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const isTest = process.env.NODE_ENV === 'test';
+const isServerless = !!process.env.VERCEL;
 
 const logger = pino({
   level: process.env.LOG_LEVEL || (isTest ? 'silent' : isProduction ? 'info' : 'debug'),
-  ...(isProduction
-    ? {}
-    : {
+  ...(!isProduction && !isServerless
+    ? {
         transport: {
           target: 'pino-pretty',
           options: {
@@ -18,7 +18,8 @@ const logger = pino({
             ignore: 'pid,hostname',
           },
         },
-      }),
+      }
+    : {}),
   redact: {
     paths: [
       'password',
